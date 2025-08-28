@@ -1,13 +1,20 @@
 # Dockerfile
 FROM python:3.11-slim
 
-# Install git so pip can pull from GitHub
-RUN apt-get update && apt-get install -y --no-install-recommends git \
+# System deps (TLS + git for VCS installs)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates git \
     && rm -rf /var/lib/apt/lists/*
 
-# Install the SDK (pin to a tag/commit when you have one)
-RUN pip install --no-cache-dir "conductor-sdk @ git+https://github.com/hts-lab/conductor-sdk@main" \
-    && pip install --no-cache-dir pandas numpy matplotlib google-cloud-storage
+# Faster, reproducible installs
+ENV PIP_NO_CACHE_DIR=1 \
+    PYTHONUNBUFFERED=1 \
+    MPLBACKEND=Agg \
+    MPLCONFIGDIR=/tmp/matplotlib
+
+# Install the SDK + analysis deps via extras
+RUN pip install --upgrade pip setuptools wheel && \
+    pip install "conductor-sdk[analysis] @ git+https://github.com/hts-lab/conductor-sdk@main"
 
 # App files
 WORKDIR /app
@@ -15,4 +22,3 @@ COPY runner.py /app/runner.py
 
 # Default command: run the script referenced by SCRIPT_REL
 CMD ["python", "-u", "runner.py"]
-
